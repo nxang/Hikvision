@@ -122,11 +122,69 @@ class HikvisionMaster:
         cap.release()
         out.release()
         print(f"✔ Video Saved: {filename}")
+        
+    def show_live_feed(self, window_name="Hikvision Live"):
+            """Interactive live feed with keyboard controls."""
+            cap = cv2.VideoCapture(self.rtsp_main)
+            if not cap.isOpened():
+                print("Error: Could not open RTSP stream.")
+                return
+
+            print(f"\n--- Control Mode Active: {window_name} ---")
+            print("W/S: Tilt | A/D: Pan | R/F: Zoom | Space: STOP | Q: Quit")
+
+            speed = 40  # Movement speed (1-100)
+            is_moving = False
+
+            while True:
+                ret, frame = cap.read()
+                if not ret:
+                    continue
+
+                cv2.imshow(window_name, frame)
+                
+                # waitKey(30) waits 30ms for a key press
+                key = cv2.waitKey(30) & 0xFF
+
+                # CONTROL LOGIC
+                if key == ord('w'): # Up
+                    self.move(0, speed, 0)
+                    is_moving = True
+                elif key == ord('s'): # Down
+                    self.move(0, -speed, 0)
+                    is_moving = True
+                elif key == ord('a'): # Left
+                    self.move(-speed, 0, 0)
+                    is_moving = True
+                elif key == ord('d'): # Right
+                    self.move(speed, 0, 0)
+                    is_moving = True
+                elif key == ord('r'): # Zoom In
+                    self.move(0, 0, speed)
+                    is_moving = True
+                elif key == ord('f'): # Zoom Out
+                    self.move(0, 0, -speed)
+                    is_moving = True
+                elif key == ord(' '): # Emergency Stop (Spacebar)
+                    self.stop()
+                    is_moving = False
+                elif key == ord('q'): # Quit
+                    self.stop()
+                    break
+                else:
+                    # If no key is pressed (key == 255) and we were moving, stop.
+                    if is_moving and key == 255:
+                        self.stop()
+                        is_moving = False
+
+            cap.release()
+            cv2.destroyAllWindows()
 
 # --- EXAMPLE THESIS WORKFLOW ---
 if __name__ == "__main__":
     # Initialize
     cam = HikvisionMaster("192.168.1.64", "admin", "Hikvision")
+    cam.show_live_feed("Research Tank Monitoring")
 
     # A. Setup/Calibration Phase (Example: Saving a new spot)
     # cam.move(40, 0) # Move right manually
@@ -135,16 +193,16 @@ if __name__ == "__main__":
     # cam.save_current_as_preset(5) # Save this as 'Pellet Drop Zone'
 
     # B. Automated Data Collection Phase
-    test_positions = {1: "Tank_Left", 2: "Tank_Right"}
+    # test_positions = {1: "Tank_Left", 2: "Tank_Right"}
 
-    for pid, name in test_positions.items():
-        if cam.go_to_preset(pid):
-            time.sleep(4) # Allow camera to stabilize
+    # for pid, name in test_positions.items():
+        # if cam.go_to_preset(pid):
+            # time.sleep(4) # Allow camera to stabilize
             
-            # Log coordinates for the thesis paper
-            coords = cam.get_ptz_info()
-            print(f"Logged {name} at: {coords}")
+            # # Log coordinates for the thesis paper
+            # coords = cam.get_ptz_info()
+            # print(f"Logged {name} at: {coords}")
 
-            # Capture evidence
-            cam.take_snapshot(position_name=name)
-            cam.record_video(position_name=name, duration=5)
+            # # Capture evidence
+            # cam.take_snapshot(position_name=name)
+            # cam.record_video(position_name=name, duration=5)
