@@ -17,6 +17,9 @@ class HikvisionMaster:
         self.auth = HTTPDigestAuth(user, password)
         self.base_url = f"https://{ip}/ISAPI"
         
+        # External Tailscale API endpoint for Digital Output 1
+        self.relay_url = "http://100.80.73.62:1880/api/do1"
+        
         # Headers captured from your browser logs to ensure access
         self.headers = {
             "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
@@ -29,6 +32,27 @@ class HikvisionMaster:
     def _get_timestamp(self):
         """Generates a sortable timestamp for filenames."""
         return time.strftime("%Y%m%d_%H%M%S")
+
+    # --- NEW: EXTERNAL HARDWARE CONTROL ---
+    def set_external_relay(self, state):
+        """Pass 'on' or 'off' to change the DO 1 hardware line via Node-RED/Tailscale API."""
+        state = state.lower()
+        if state not in ['on', 'off']:
+            print("❌ Invalid relay state requested. Use 'on' or 'off'.")
+            return False
+            
+        url = f"{self.relay_url}/{state}"
+        try:
+            # Note: This is an HTTP endpoint, so we don't pass self.auth or self.headers (which are for the Hikvision device)
+            response = requests.get(url, timeout=5)
+            if response.status_code == 200:
+                print(f"🔌 Relay DO 1 successfully turned {state.upper()}!")
+                return True
+            else:
+                print(f"❌ Relay Failed. Server responded with code: {response.status_code}")
+        except requests.exceptions.RequestException as e:
+            print(f"💥 Network error trying to reach IRIV Pi over Tailscale: {e}")
+        return False
 
     # --- 1. MOVEMENT & LENS CONTROL ---
     def move(self, pan, tilt, zoom=0):
@@ -90,7 +114,6 @@ class HikvisionMaster:
         except: return None
 
     # --- 4. DATA CAPTURE (IMAGE & VIDEO) ---
-    # MODIFIED: Added an optional 'suffix' parameter to differentiate rapid shots
     def take_snapshot(self, position_name="Manual", suffix=""):
         """Saves a high-res JPG named by position, time, and sequential suffix."""
         filename = f"{position_name}_{self._get_timestamp()}{suffix}.jpg"
@@ -254,15 +277,19 @@ class HikvisionMaster:
 if __name__ == "__main__":
     cam = HikvisionMaster("192.168.1.64", "admin", "Hikvision")
     
-    presets_to_capture = [2,5, 6, 7, 8, 9, 10, 11, 12] 
+    cam.set_external_relay("on")
+    time.sleep(5)  # Short buffer to let lights illuminate or hardware spin up
+    cam.set_external_relay("off")
+
+    presets_to_capture = [2, 5, 6, 7, 8, 9, 10, 11, 12] 
     stabilization_delay = 4.0
     
-    # NEW CONFIGURATION FOR TEMPORAL MULTI-SHOT FILTERING
+    # CONFIGURATION FOR TEMPORAL MULTI-SHOT FILTERING
     num_shots_per_position = 1    # Total rapid pictures to take at each spot
     shot_interval_delay = 0.25    # Wait 250 milliseconds between shots to let water ripples move
     
     current_date = time.strftime("%Y-%m-%d")
-    output_folder = f"Captures_{current_date}"
+    output_folder = f"media/Captures_{current_date}"
     
     if not os.path.exists(output_folder):
         os.makedirs(output_folder)
@@ -280,7 +307,8 @@ if __name__ == "__main__":
             if coords:
                 print(f"📊 Telemetry logged -> Pan: {coords['pan']}°, Tilt: {coords['tilt']}°, Zoom: {coords['zoom']}") 
             
-            # --- MODIFIED: RAPID CONSECUTIVE CAPTURE SUB-LOOP ---
+            
+            # --- RAPID CONSECUTIVE CAPTURE SUB-LOOP ---
             print(f"📸 Starting rapid sequence capture ({num_shots_per_position} shots)...")
             for shot_idx in range(1, num_shots_per_position + 1):
                 suffix_string = f"_shot_{shot_idx}"
