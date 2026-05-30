@@ -90,9 +90,10 @@ class HikvisionMaster:
         except: return None
 
     # --- 4. DATA CAPTURE (IMAGE & VIDEO) ---
-    def take_snapshot(self, position_name="Manual"):
-        """Saves a high-res JPG named by position and time."""
-        filename = f"{position_name}_{self._get_timestamp()}.jpg"
+    # MODIFIED: Added an optional 'suffix' parameter to differentiate rapid shots
+    def take_snapshot(self, position_name="Manual", suffix=""):
+        """Saves a high-res JPG named by position, time, and sequential suffix."""
+        filename = f"{position_name}_{self._get_timestamp()}{suffix}.jpg"
         url = f"{self.base_url}/Streaming/channels/101/picture"
         try:
             r = requests.get(url, auth=self.auth, verify=False, timeout=10)
@@ -123,86 +124,180 @@ class HikvisionMaster:
         out.release()
         print(f"✔ Video Saved: {filename}")
         
+    def force_color_mode(self):
+        url_base = f"{self.base_url}/Image/channels/1"
+        payload_base = """<?xml version="1.0" encoding="UTF-8"?>
+        <ImageChannel>
+            <DayNightSwitch>
+                <dayNightFilterType>day</dayNightFilterType>
+            </DayNightSwitch>
+        </ImageChannel>"""
+
+        url_icr = f"{self.base_url}/Image/channels/1/icr"
+        payload_icr = """<?xml version="1.0" encoding="UTF-8"?>
+        <IcrIrcType>
+            <mode>day</mode>
+        </IcrIrcType>"""
+
+        try:
+            print("Trying primary image endpoint...")
+            r = requests.put(url_base, auth=self.auth, data=payload_base, headers=self.headers, verify=False, timeout=5)
+            if r.status_code == 200:
+                print("☀ Camera successfully locked to Day/Color Mode via primary endpoint!")
+                return True
+        except: pass
+
+        try:
+            print("Primary endpoint unavailable (404). Trying alternative ICR endpoint...")
+            r = requests.put(url_icr, auth=self.auth, data=payload_icr, headers=self.headers, verify=False, timeout=5)
+            if r.status_code == 200:
+                print("☀ Camera successfully locked to Day/Color Mode via ICR endpoint!")
+                return True
+            else:
+                print(f"❌ Both configurations rejected. Latest Status Code: {r.status_code}")
+        except Exception as e:
+            print(f"Network error during execution: {e}")
+        return False
+        
     def show_live_feed(self, window_name="Hikvision Live"):
-            """Interactive live feed with keyboard controls."""
-            cap = cv2.VideoCapture(self.rtsp_main)
-            if not cap.isOpened():
-                print("Error: Could not open RTSP stream.")
-                return
+        import queue
+        import threading
+        os.environ["OPENCV_FFMPEG_CAPTURE_OPTIONS"] = "rtsp_transport;tcp|buffer_size;10240000|max_delay;500000"
 
-            print(f"\n--- Control Mode Active: {window_name} ---")
-            print("W/S: Tilt | A/D: Pan | R/F: Zoom | Space: STOP | Q: Quit")
+        cap = cv2.VideoCapture(self.rtsp_main, cv2.CAP_FFMPEG)
+        if not cap.isOpened():
+            print("Error: Could not open RTSP stream.")
+            return
 
-            speed = 40  # Movement speed (1-100)
-            is_moving = False
+        w = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+        h = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+        fps = int(cap.get(cv2.CAP_PROP_FPS)) or 25
 
-            while True:
+        print(f"\n--- Control Mode Active: {window_name} ---")
+        speed = 20
+        is_moving = False
+        frame_queue = queue.Queue(maxsize=2)
+        stop_event = threading.Event()
+
+        video_writer = None
+        recording_end_time = 0
+        is_recording = False
+
+        def _stream_reader():
+            while not stop_event.is_set():
                 ret, frame = cap.read()
                 if not ret:
+                    time.sleep(0.01)
                     continue
+                if frame_queue.full():
+                    try: frame_queue.get_nowait()
+                    except queue.Empty: pass
+                frame_queue.put(frame)
 
-                cv2.imshow(window_name, frame)
-                
-                # waitKey(30) waits 30ms for a key press
-                key = cv2.waitKey(30) & 0xFF
+        reader_thread = threading.Thread(target=_stream_reader, daemon=True)
+        reader_thread.start()
+        cv2.namedWindow(window_name, cv2.WINDOW_NORMAL)
 
-                # CONTROL LOGIC
-                if key == ord('w'): # Up
-                    self.move(0, speed, 0)
-                    is_moving = True
-                elif key == ord('s'): # Down
-                    self.move(0, -speed, 0)
-                    is_moving = True
-                elif key == ord('a'): # Left
-                    self.move(-speed, 0, 0)
-                    is_moving = True
-                elif key == ord('d'): # Right
-                    self.move(speed, 0, 0)
-                    is_moving = True
-                elif key == ord('r'): # Zoom In
-                    self.move(0, 0, speed)
-                    is_moving = True
-                elif key == ord('f'): # Zoom Out
-                    self.move(0, 0, -speed)
-                    is_moving = True
-                elif key == ord(' '): # Emergency Stop (Spacebar)
-                    self.stop()
-                    is_moving = False
-                elif key == ord('q'): # Quit
+        try:
+            while True:
+                if frame_queue.empty():
+                    time.sleep(0.005)
+                    continue
+                frame = frame_queue.get()
+                if is_recording:
+                    if time.time() < recording_end_time:
+                        video_writer.write(frame)
+                    else:
+                        is_recording = False
+                        video_writer.release()
+                        print("✔ Video Recording Complete!")
+
+                display_frame = frame.copy()
+                if is_recording:
+                    cv2.putText(display_frame, "● RECORDING", (20, 40), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
+
+                cv2.imshow(window_name, display_frame)
+                key = cv2.waitKey(10) & 0xFF
+
+                if key == ord('w'): self.move(0, speed, 0); is_moving = True
+                elif key == ord('s'): self.move(0, -speed, 0); is_moving = True
+                elif key == ord('a'): self.move(-speed, 0, 0); is_moving = True
+                elif key == ord('d'): self.move(speed, 0, 0); is_moving = True
+                elif key == ord(' '): self.stop(); is_moving = False
+                elif key == ord('c'):
+                    self.stop(); is_moving = False
+                    self.take_snapshot(position_name="Tank_Capture")
+                elif key == ord('v'):
+                    if not is_recording:
+                        self.stop(); is_moving = False
+                        filename = f"Tank_Direct_Stream_{self._get_timestamp()}.mp4"
+                        video_writer = cv2.VideoWriter(filename, cv2.VideoWriter_fourcc(*'mp4v'), fps, (w, h))
+                        recording_end_time = time.time() + 5.0
+                        is_recording = True
+                elif key == ord('q'):
                     self.stop()
                     break
                 else:
-                    # If no key is pressed (key == 255) and we were moving, stop.
                     if is_moving and key == 255:
                         self.stop()
                         is_moving = False
-
+        finally:
+            stop_event.set()
+            reader_thread.join(timeout=1.0)
+            if video_writer is not None and is_recording: video_writer.release()
             cap.release()
             cv2.destroyAllWindows()
+            del os.environ["OPENCV_FFMPEG_CAPTURE_OPTIONS"]
 
-# --- EXAMPLE THESIS WORKFLOW ---
+
+# --- BATCH EXECUTION RUNNER WORKFLOW ---
 if __name__ == "__main__":
-    # Initialize
     cam = HikvisionMaster("192.168.1.64", "admin", "Hikvision")
-    cam.show_live_feed("Research Tank Monitoring")
-
-    # A. Setup/Calibration Phase (Example: Saving a new spot)
-    # cam.move(40, 0) # Move right manually
-    # time.sleep(2)
-    # cam.stop()
-    # cam.save_current_as_preset(5) # Save this as 'Pellet Drop Zone'
-
-    # B. Automated Data Collection Phase
-    # test_positions = {1: "Tank_Left", 2: "Tank_Right"}
-
-    # for pid, name in test_positions.items():
-        # if cam.go_to_preset(pid):
-            # time.sleep(4) # Allow camera to stabilize
+    
+    presets_to_capture = [2,5, 6, 7, 8, 9, 10, 11, 12] 
+    stabilization_delay = 4.0
+    
+    # NEW CONFIGURATION FOR TEMPORAL MULTI-SHOT FILTERING
+    num_shots_per_position = 1    # Total rapid pictures to take at each spot
+    shot_interval_delay = 0.25    # Wait 250 milliseconds between shots to let water ripples move
+    
+    current_date = time.strftime("%Y-%m-%d")
+    output_folder = f"Captures_{current_date}"
+    
+    if not os.path.exists(output_folder):
+        os.makedirs(output_folder)
+        print(f"📁 Created folder: {output_folder}")
+    
+    for preset_id in presets_to_capture: 
+        position_name = os.path.join(output_folder, f"Preset_{preset_id}") 
+        print(f"\n🔄 Command: Moving to Preset {preset_id}...") 
+        
+        if cam.go_to_preset(preset_id): 
+            print(f"⏳ Arrived. Waiting {stabilization_delay}s for physical lens stabilization...") 
+            time.sleep(stabilization_delay) 
             
-            # # Log coordinates for the thesis paper
-            # coords = cam.get_ptz_info()
-            # print(f"Logged {name} at: {coords}")
+            coords = cam.get_ptz_info() 
+            if coords:
+                print(f"📊 Telemetry logged -> Pan: {coords['pan']}°, Tilt: {coords['tilt']}°, Zoom: {coords['zoom']}") 
+            
+            # --- MODIFIED: RAPID CONSECUTIVE CAPTURE SUB-LOOP ---
+            print(f"📸 Starting rapid sequence capture ({num_shots_per_position} shots)...")
+            for shot_idx in range(1, num_shots_per_position + 1):
+                suffix_string = f"_shot_{shot_idx}"
+                
+                saved_file = cam.take_snapshot(position_name=position_name, suffix=suffix_string)
+                
+                if saved_file:
+                    print(f"   ✔ Captured shot {shot_idx}/{num_shots_per_position}: {saved_file}")
+                else:
+                    print(f"   ✘ Error: Failed to write shot {shot_idx} at Preset {preset_id}")
+                
+                # Small pause between snapshots so water waves shift position slightly
+                if shot_idx < num_shots_per_position:
+                    time.sleep(shot_interval_delay)
+                    
+        else:
+            print(f"✘ Error: Camera rejected command or failed to reach Preset {preset_id}")
 
-            # # Capture evidence
-            # cam.take_snapshot(position_name=name)
-            # cam.record_video(position_name=name, duration=5)
+    print("\n-----------------------------------------------------------------")
+    print(f"🏁 Custom batch capture complete! Check the '{output_folder}' directory for images.")
