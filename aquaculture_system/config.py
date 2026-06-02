@@ -1,8 +1,8 @@
 # config.py
 import os
 
-DRY_RUN = True
-# DRY_RUN =False
+# DRY_RUN = True
+DRY_RUN =False
 
 
 # --- Hardware Endpoints & Specs ---
@@ -35,7 +35,7 @@ CSV_LOG_FILE = "aquaculture_feeding_ledger.csv"
 MEDIA_OUTPUT_DIR = "media"
 
 # --- Feeding Schedule Times ---
-FEED_TIMES = ["16:44"]
+FEED_TIMES = ["16:48"]
 
 # =========================================================================
 # --- TAPERED/BEHAVIORAL FEEDING ENGINE PROFILE ---
