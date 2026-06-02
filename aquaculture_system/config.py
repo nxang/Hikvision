@@ -14,7 +14,7 @@ RELAY_API_URL = "http://100.80.73.62:1880/api/do1"
 SECONDS_PER_CUP = 11.0
 
 # --- AI Machine Learning Settings ---
-YOLO_WEIGHTS_PATH = os.path.join("runs", "detect", "aquaculture_pellet", "pellet_run_s", "weights", "best.pt")
+YOLO_WEIGHTS_PATH = os.path.join("best.pt")
 YOLO_CONF_THRESHOLD = 0.50  # Only count pellets if the model is > 50% confident
 # --- RADIAL SCATTER ANTI-DOUBLE COUNTING THRESHOLDS ---
 # Since pellets blast outward in all directions, if ANY single peripheral preset 
@@ -35,7 +35,7 @@ CSV_LOG_FILE = "aquaculture_feeding_ledger.csv"
 MEDIA_OUTPUT_DIR = "media"
 
 # --- Feeding Schedule Times ---
-FEED_TIMES = ["14:22"]
+FEED_TIMES = ["16:08"]
 
 # =========================================================================
 # --- TAPERED/BEHAVIORAL FEEDING ENGINE PROFILE ---
