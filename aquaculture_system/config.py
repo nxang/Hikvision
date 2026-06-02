@@ -35,7 +35,7 @@ CSV_LOG_FILE = "aquaculture_feeding_ledger.csv"
 MEDIA_OUTPUT_DIR = "media"
 
 # --- Feeding Schedule Times ---
-FEED_TIMES = ["16:48"]
+FEED_TIMES = ["17:00"]
 
 # =========================================================================
 # --- TAPERED/BEHAVIORAL FEEDING ENGINE PROFILE ---
@@ -72,7 +72,7 @@ FEED_TIMES = ["16:48"]
 TOTAL_SESSION_CUPS = 5.0             # Total ideal amount of food for this session
 NUM_DISTRIBUTIONS = 5                # How many fractional portions to split the total into
 
-DELAY_PER_INTERVAL_MINUTES = 0.5     # EXACT time to wait before EACH camera check pass
+DELAY_PER_INTERVAL_MINUTES = 1.5     # EXACT time to wait before EACH camera check pass
 INSPECTION_COUNT_PER_DELAY = 2       # How many perimeter photo sweeps to execute during that wait window
 
 DOUBLE_SWEEP_TOLERANCE = 1           # Allowed difference to count as "almost the same" (e.g. 4 vs 4, or 4 vs 3)
