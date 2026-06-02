@@ -1,8 +1,8 @@
 # config.py
 import os
 
-# DRY_RUN = True
-DRY_RUN =False
+DRY_RUN = True
+# DRY_RUN =False
 
 
 # --- Hardware Endpoints & Specs ---
@@ -35,7 +35,7 @@ CSV_LOG_FILE = "aquaculture_feeding_ledger.csv"
 MEDIA_OUTPUT_DIR = "media"
 
 # --- Feeding Schedule Times ---
-FEED_TIMES = ["13:02"]
+FEED_TIMES = ["14:22"]
 
 # =========================================================================
 # --- TAPERED/BEHAVIORAL FEEDING ENGINE PROFILE ---
@@ -74,3 +74,7 @@ NUM_DISTRIBUTIONS = 5                # How many fractional portions to split the
 
 DELAY_PER_INTERVAL_MINUTES = 0.5     # EXACT time to wait before EACH camera check pass
 INSPECTION_COUNT_PER_DELAY = 2       # How many perimeter photo sweeps to execute during that wait window
+
+DOUBLE_SWEEP_TOLERANCE = 1           # Allowed difference to count as "almost the same" (e.g. 4 vs 4, or 4 vs 3)
+STAGNATION_MIN_PELLETS = 1           # Minimum pellets required to trigger rule (ignores clean 0 vs 0 frames)
+POSTPONEMENT_MINUTES = 3.0           # Extra delay wait time to give fish if pellets are found sitting static
