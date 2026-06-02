@@ -1,5 +1,2 @@
-Timestamp,Initial_Feed_Cups,Total_Pellets_Left,Next_Scheduled_Feed_Cups
-2026-05-30 16:11:30,0.5,69,0.2
-2026-05-30 16:17:39,1.5,13,1.4
-2026-05-30 16:19:25,1.5,57,1.2
-2026-05-30 16:26:05,1.2,15,1.1
+Timestamp,Total_Cups_Fed_This_Session,Termination_Status
+2026-06-02 13:11:16,4.0,ABORTED_AT_PORTION_4_CHECK_1
