@@ -4,7 +4,6 @@ import os
 # DRY_RUN = True
 DRY_RUN =False
 
-
 # --- Hardware Endpoints & Specs ---
 CAMERA_IP = "192.168.1.64"
 CAMERA_USER = "admin"
@@ -15,7 +14,7 @@ SECONDS_PER_CUP = 11.0
 
 # --- AI Machine Learning Settings ---
 YOLO_WEIGHTS_PATH = os.path.join("best.pt")
-YOLO_CONF_THRESHOLD = 0.30  # Only count pellets if the model is > 50% confident
+YOLO_CONF_THRESHOLD = 0.40  # Only count pellets if the model is > 50% confident
 # --- RADIAL SCATTER ANTI-DOUBLE COUNTING THRESHOLDS ---
 # Since pellets blast outward in all directions, if ANY single peripheral preset 
 # catches more than this limit, it means pellets are escaping the school.
@@ -35,7 +34,7 @@ CSV_LOG_FILE = "aquaculture_feeding_ledger.csv"
 MEDIA_OUTPUT_DIR = "media"
 
 # --- Feeding Schedule Times ---
-FEED_TIMES = ["8:00", "13:00", "17:00"]  # 24-hour format times to trigger feeding sessions
+FEED_TIMES = ["9:00", "12:00","15:00","18:00"]  # 24-hour format times to trigger feeding sessions
 
 # =========================================================================
 # --- TAPERED/BEHAVIORAL FEEDING ENGINE PROFILE ---
@@ -69,12 +68,12 @@ FEED_TIMES = ["8:00", "13:00", "17:00"]  # 24-hour format times to trigger feedi
 #     }
 # ]
 
-TOTAL_SESSION_CUPS = 5.0             # Total ideal amount of food for this session
-NUM_DISTRIBUTIONS = 8                # How many fractional portions to split the total into
+TOTAL_SESSION_CUPS = 6.0             # Total ideal amount of food for this session
+NUM_DISTRIBUTIONS = 5                # How many fractional portions to split the total into
 
-DELAY_PER_INTERVAL_MINUTES = 1.5     # EXACT time to wait before EACH camera check pass
+DELAY_PER_INTERVAL_MINUTES = 3.0     # EXACT time to wait before EACH camera check pass
 INSPECTION_COUNT_PER_DELAY = 2       # How many perimeter photo sweeps to execute during that wait window
 
-DOUBLE_SWEEP_TOLERANCE = 3           # Allowed difference to count as "almost the same" (e.g. 4 vs 4, or 4 vs 3)
-STAGNATION_MIN_PELLETS = 3           # Minimum pellets required to trigger rule (ignores clean 0 vs 0 frames)
+DOUBLE_SWEEP_TOLERANCE = 4           # Allowed difference to count as "almost the same" (e.g. 4 vs 4, or 4 vs 3)
+STAGNATION_MIN_PELLETS = 4           # Minimum pellets required to trigger rule (ignores clean 0 vs 0 frames)
 POSTPONEMENT_MINUTES = 3.0           # Extra delay wait time to give fish if pellets are found sitting static
