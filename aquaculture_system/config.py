@@ -34,7 +34,7 @@ CSV_LOG_FILE = "aquaculture_feeding_ledger.csv"
 MEDIA_OUTPUT_DIR = "media"
 
 # --- Feeding Schedule Times ---
-FEED_TIMES = ["9:00", "12:00","15:00","18:00"]  # 24-hour format times to trigger feeding sessions
+FEED_TIMES = ["09:00", "12:00","15:00","18:00"]  # 24-hour format times to trigger feeding sessions
 
 # =========================================================================
 # --- TAPERED/BEHAVIORAL FEEDING ENGINE PROFILE ---
@@ -68,7 +68,7 @@ FEED_TIMES = ["9:00", "12:00","15:00","18:00"]  # 24-hour format times to trigge
 #     }
 # ]
 
-TOTAL_SESSION_CUPS = 6.0             # Total ideal amount of food for this session
+TOTAL_SESSION_CUPS = 4.0             # Total ideal amount of food for this session
 NUM_DISTRIBUTIONS = 5                # How many fractional portions to split the total into
 
 DELAY_PER_INTERVAL_MINUTES = 3.0     # EXACT time to wait before EACH camera check pass
