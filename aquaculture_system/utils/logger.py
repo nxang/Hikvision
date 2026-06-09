@@ -1,17 +1,31 @@
 # utils/logger.py
 import os
 import csv
+import sys
+import threading
 import time
 
-def log_session_summary(log_file, total_dispensed, final_status):
-    """Writes session outcomes to a CSV audit spreadsheet."""
+def log_session_summary(log_file, total_dispensed, baseline_budget, historical_mult, final_status):
+    """Writes rich session outcomes to a CSV audit spreadsheet."""
     file_exists = os.path.isfile(log_file)
     try:
         with open(log_file, mode='a', newline='') as csv_file:
             writer = csv.writer(csv_file)
             if not file_exists:
-                writer.writerow(["Timestamp", "Total_Cups_Fed_This_Session", "Termination_Status"])
-            writer.writerow([time.strftime("%Y-%m-%d %H:%M:%S"), total_dispensed, final_status])
+                writer.writerow([
+                    "Timestamp", 
+                    "Baseline_Budget_Cups", 
+                    "Historical_Multiplier", 
+                    "Actual_Cups_Fed_This_Session", 
+                    "Termination_Status"
+                ])
+            writer.writerow([
+                time.strftime("%Y-%m-%d %H:%M:%S"), 
+                round(baseline_budget, 2),
+                round(historical_mult, 2),
+                round(total_dispensed, 2), 
+                final_status
+            ])
             print(f"📝 Session accounting saved to ledger spreadsheet: {log_file}")
     except Exception as e:
         print(f"❌ Failed to write to CSV log: {e}")
@@ -65,3 +79,29 @@ def calculate_historical_adjustment(log_file, lookback_sessions=3):
     # Fallback to normal profile values
     print("⚖ [History Engine] Balanced meal data. Keeping feed values at 100% standard baseline.")
     return 1.0
+
+class ThreadSafeTeeLogger:
+    """
+    Interceptors sys.stdout, writing console prints to both the 
+    standard terminal screen and a daily log file simultaneously.
+    """
+    def __init__(self, log_filepath):
+        self.terminal = sys.stdout
+        self.log_file = open(log_filepath, "a", encoding="utf-8")
+        self.lock = threading.Lock()
+
+    def write(self, message):
+        with self.lock:
+            self.terminal.write(message)
+            self.log_file.write(message)
+            self.log_file.flush()  # Force write immediate telemetry to disk
+
+    def flush(self):
+        with self.lock:
+            self.terminal.flush()
+            self.log_file.flush()
+
+    def close(self):
+        with self.lock:
+            if not self.log_file.closed:
+                self.log_file.close()

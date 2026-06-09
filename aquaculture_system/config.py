@@ -1,8 +1,8 @@
 # config.py
 import os
 
-# DRY_RUN = True
-DRY_RUN =False
+DRY_RUN = True
+# DRY_RUN =False
 
 # --- Hardware Endpoints & Specs ---
 CAMERA_IP = "192.168.1.64"
@@ -14,11 +14,20 @@ SECONDS_PER_CUP = 11.0
 
 # --- AI Machine Learning Settings ---
 YOLO_WEIGHTS_PATH = os.path.join("best.pt")
-YOLO_CONF_THRESHOLD = 0.40  # Only count pellets if the model is > 50% confident
+YOLO_CONF_THRESHOLD = 0.40  # Only count pellets if the model is > 40% confident
 # --- RADIAL SCATTER ANTI-DOUBLE COUNTING THRESHOLDS ---
 # Since pellets blast outward in all directions, if ANY single peripheral preset 
 # catches more than this limit, it means pellets are escaping the school.
 MAX_SINGLE_ZONE_LEFTOVERS = 8
+
+CLEAN_PLATE_PELLET_THRESHOLD = 2          
+
+# Time limit (minutes). If a portion is cleared faster than this, fish are "ravenous"
+FAST_EATING_TIME_THRESHOLD_MINS = 2  
+
+# Scale factors applied to the NEXT fractional drop based on clearing velocity
+APPETITE_BOOST_MULTIPLIER = 1.20          # Increase next drop by 20% if eating fast
+APPETITE_REDUCTION_MULTIPLIER = 0.70      # Decrease next drop by 30% if pellets linger
 
 # --- PTZ Presets Layout ---
 FEEDER_STATION_PRESET = 9
