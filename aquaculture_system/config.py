@@ -25,25 +25,29 @@ CLEAN_PLATE_PELLET_THRESHOLD = 2
 # Time limit (minutes). If a portion is cleared faster than this, fish are "ravenous"
 FAST_EATING_TIME_THRESHOLD_MINS = 2  
 
+# Tuning bounds for Consumption Velocity (Vc)
+VELOCITY_ACTIVE_THRESHOLD = 5.0      # Min pellets eaten per minute to count as ravenous
+VELOCITY_STAGNATION_THRESHOLD = 0.5  # Below this rate, fish have lost interest
+
 # Scale factors applied to the NEXT fractional drop based on clearing velocity
 APPETITE_BOOST_MULTIPLIER = 1.20          # Increase next drop by 20% if eating fast
 APPETITE_REDUCTION_MULTIPLIER = 0.70      # Decrease next drop by 30% if pellets linger
 
 # --- PTZ Presets Layout ---
-FEEDER_STATION_PRESET = 9
+FEEDER_STATION_PRESET = 4
 
 # Pre-Check scans everything including the feeder zone to guarantee absolute cleanliness
-PRECHECK_PRESETS = [5, 6, 7, 8, 9, 10, 11, 12]
+PRECHECK_PRESETS = [4,5, 6, 7, 8, 9, 10, 11, 12]
 
 # Active Meal checks EXCLUDE Preset 9 to completely avoid surface foam/splashing noise
-ACTIVE_MEAL_PRESETS = [5, 6, 7, 8, 10, 11, 12]
+ACTIVE_MEAL_PRESETS = [4,5, 6, 7, 8, 10, 11, 12]
 
 # --- Storage Settings ---
 CSV_LOG_FILE = "aquaculture_feeding_ledger.csv"
 MEDIA_OUTPUT_DIR = "media"
 
 # --- Feeding Schedule Times ---
-FEED_TIMES = ["09:00", "12:00","15:00","18:00"]  # 24-hour format times to trigger feeding sessions
+FEED_TIMES = ["16:30","09:00", "12:00","15:00","18:00"]  # 24-hour format times to trigger feeding sessions
 
 # =========================================================================
 # --- TAPERED/BEHAVIORAL FEEDING ENGINE PROFILE ---
@@ -80,7 +84,7 @@ FEED_TIMES = ["09:00", "12:00","15:00","18:00"]  # 24-hour format times to trigg
 TOTAL_SESSION_CUPS = 4.0             # Total ideal amount of food for this session
 NUM_DISTRIBUTIONS = 5                # How many fractional portions to split the total into
 
-DELAY_PER_INTERVAL_MINUTES = 3.0     # EXACT time to wait before EACH camera check pass
+DELAY_PER_INTERVAL_MINUTES = 1.0     # EXACT time to wait before EACH camera check pass
 INSPECTION_COUNT_PER_DELAY = 2       # How many perimeter photo sweeps to execute during that wait window
 
 DOUBLE_SWEEP_TOLERANCE = 4           # Allowed difference to count as "almost the same" (e.g. 4 vs 4, or 4 vs 3)
