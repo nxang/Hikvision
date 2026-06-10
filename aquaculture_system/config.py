@@ -47,7 +47,7 @@ CSV_LOG_FILE = "aquaculture_feeding_ledger.csv"
 MEDIA_OUTPUT_DIR = "media"
 
 # --- Feeding Schedule Times ---
-FEED_TIMES = ["16:45","09:00", "12:00","15:00","18:00"]  # 24-hour format times to trigger feeding sessions
+FEED_TIMES = ["16:48","09:00", "12:00","15:00","18:00"]  # 24-hour format times to trigger feeding sessions
 
 # =========================================================================
 # --- TAPERED/BEHAVIORAL FEEDING ENGINE PROFILE ---
