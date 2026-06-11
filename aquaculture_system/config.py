@@ -45,6 +45,15 @@ ACTIVE_MEAL_PRESETS = [4,5, 6, 7, 8, 10, 11, 12]
 # --- Storage Settings ---
 CSV_LOG_FILE = "aquaculture_feeding_ledger.csv"
 MEDIA_OUTPUT_DIR = "media"
+
+
+# =========================================================================
+# --- BIOMASS ESTIMATION SCHEME TRACKING ---
+# =========================================================================
+BIOMASS_MATRIX_PATH = "pond_preset2_homography.npy"
+BIOMASS_LENGTH_CORRECTION = 0.625
+BIOMASS_JUVENILE_A = 0.020
+BIOMASS_GROWOUT_A = 0.0198
 BIOMASS_PRESET = 2
 
 # --- Feeding Schedule Times ---
