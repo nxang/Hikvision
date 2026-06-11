@@ -50,7 +50,7 @@ def calculate_historical_adjustment(log_file, lookback_sessions=3):
             # Extract the string completion codes from the last entries
             for row in data_rows[-lookback_sessions:]:
                 if len(row) >= 3:
-                    recent_statuses.append(row[2])
+                    recent_statuses.append(row[4])
     except Exception as e:
         print(f"⚠️ [History Engine] File read error: {e}")
         return 1.0

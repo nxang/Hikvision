@@ -50,10 +50,10 @@ MEDIA_OUTPUT_DIR = "media"
 # =========================================================================
 # --- BIOMASS ESTIMATION SCHEME TRACKING ---
 # =========================================================================
-MATRIX_PATH = "pond_preset2_homography.npy"
-BIOMASS_LENGTH_CORRECTION = 0.625
-BIOMASS_JUVENILE_A = 0.020
-BIOMASS_GROWOUT_A = 0.0198
+BIOMASS_MATRIX_PATH  = "pond_preset2_homography.npy"
+LENGTH_CORRECTION_FACTOR  = 0.625
+JUVENILE_A_COEFF  = 0.020
+GROWOUT_A_COEFF  = 0.0198
 BIOMASS_PRESET = 2
 
 # --- Feeding Schedule Times ---
