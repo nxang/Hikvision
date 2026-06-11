@@ -427,7 +427,7 @@ if __name__ == "__main__":
 
     # Initialize the Biomass Instance Segmentation Model ONCE right at boot runtime 
     # to eliminate inference execution lag spikes during session startup routines
-    BIOMASS_MODEL_PATH = r"runs\segment\Fish_Biomass\Tilapia_Seg_Nano\weights\best.pt"
+    BIOMASS_MODEL_PATH = "fish.pt"
     print(f"🧬 [Main Init] Compiling Instance Segmentation Network Layer from: {BIOMASS_MODEL_PATH}")
     yolo_biomass_model = YOLO(BIOMASS_MODEL_PATH)
 
