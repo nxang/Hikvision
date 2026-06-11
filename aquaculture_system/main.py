@@ -13,7 +13,6 @@ from hardware.camera import HikvisionCamera
 from hardware.relay import ExternalRelayWorker
 from ai.detector import AIAnalysisWorker
 from utils.logger import ThreadSafeTeeLogger, log_session_summary, calculate_historical_adjustment
-from ai.detector import AIAnalysisWorker
 
 def convert_pixels_to_cm(pixel_points, homography_matrix):
     """Transforms tracking pixel coordinates into physical pond floor centimeter values."""
