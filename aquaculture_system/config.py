@@ -1,8 +1,8 @@
 # config.py
 import os
 
-# DRY_RUN = True
-DRY_RUN =False
+DRY_RUN = True
+# DRY_RUN =False
 
 # --- Hardware Endpoints & Specs ---
 CAMERA_IP = "192.168.1.64"
@@ -50,14 +50,14 @@ MEDIA_OUTPUT_DIR = "media"
 # =========================================================================
 # --- BIOMASS ESTIMATION SCHEME TRACKING ---
 # =========================================================================
-BIOMASS_MATRIX_PATH = "pond_preset2_homography.npy"
+MATRIX_PATH = "pond_preset2_homography.npy"
 BIOMASS_LENGTH_CORRECTION = 0.625
 BIOMASS_JUVENILE_A = 0.020
 BIOMASS_GROWOUT_A = 0.0198
 BIOMASS_PRESET = 2
 
 # --- Feeding Schedule Times ---
-FEED_TIMES = ["09:00", "12:00","15:00","18:00","23:18"]  # 24-hour format times to trigger feeding sessions
+FEED_TIMES = ["09:00", "12:00","15:00","18:00"]  # 24-hour format times to trigger feeding sessions
 
 # =========================================================================
 # --- TAPERED/BEHAVIORAL FEEDING ENGINE PROFILE ---
