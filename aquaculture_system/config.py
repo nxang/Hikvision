@@ -45,9 +45,10 @@ ACTIVE_MEAL_PRESETS = [4,5, 6, 7, 8, 10, 11, 12]
 # --- Storage Settings ---
 CSV_LOG_FILE = "aquaculture_feeding_ledger.csv"
 MEDIA_OUTPUT_DIR = "media"
+BIOMASS_PRESET = 2
 
 # --- Feeding Schedule Times ---
-FEED_TIMES = ["16:48","09:00", "12:00","15:00","18:00"]  # 24-hour format times to trigger feeding sessions
+FEED_TIMES = ["09:00", "12:00","15:00","18:00","23:18"]  # 24-hour format times to trigger feeding sessions
 
 # =========================================================================
 # --- TAPERED/BEHAVIORAL FEEDING ENGINE PROFILE ---
