@@ -37,11 +37,11 @@ APPETITE_REDUCTION_MULTIPLIER = 0.70      # Decrease next drop by 30% if pellets
 FEEDER_STATION_PRESET = 4
 
 # Pre-Check scans everything including the feeder zone to guarantee absolute cleanliness
-# PRECHECK_PRESETS = [4,5, 6, 7, 8, 9, 10, 11, 12]
+PRECHECK_PRESETS = [4,5, 6, 7, 8, 9, 10, 11, 12]
 # PRECHECK_PRESETS = [4]
 
 # Active Meal checks EXCLUDE Preset 9 to completely avoid surface foam/splashing noise
-# ACTIVE_MEAL_PRESETS = [4,5, 6, 7, 8, 10, 11, 12]
+ACTIVE_MEAL_PRESETS = [4,5, 6, 7, 8, 10, 11, 12]
 # ACTIVE_MEAL_PRESETS = [5]
 
 # --- Storage Settings ---
@@ -59,44 +59,13 @@ GROWOUT_A_COEFF  = 0.0198
 BIOMASS_PRESET = 2
 
 # --- Feeding Schedule Times ---
-FEED_TIMES = ["09:00", "12:00","13:46","15:00","18:00"]  # 24-hour format times to trigger feeding sessions
+FEED_TIMES = ["09:00", "12:00","15:00","18:00"]  # 24-hour format times to trigger feeding sessions
 
-# =========================================================================
-# --- TAPERED/BEHAVIORAL FEEDING ENGINE PROFILE ---
-# =========================================================================
-# FEEDING_SEQUENCE = [
-#     {
-#         "step_label": "STAGE_1_PRIMER",
-#         "feed_cups": 0.5,           # Small test dose to verify active appetite
-#         # "delay_minutes": 3.0,       # Wait 3 mins for them to clean the plate
-#         "delay_minutes": 0.1,       # Wait 3 mins for them to clean the plate
-#         "inspection_count": 1,      # 1 full sweep of the perimeter at the end
-#         "is_active_meal": True
-#     },
-#     {
-#         "step_label": "STAGE_2_MAIN_COURSE",
-#         "feed_cups": 1.5,           # Bulk nutritional delivery
-#         # "delay_minutes": 6.0,       # Longer consumption window
-#         "delay_minutes": 0.1,       # Wait 3 mins for them to clean the plate
-
-#         "inspection_count": 3,      # Scans perimeter every 2 mins to catch escapees early
-#         "is_active_meal": True
-#     },
-#     {
-#         "step_label": "STAGE_3_TAPER_CHECK",
-#         "feed_cups": 0.5,           # Micro final top-up
-#         # "delay_minutes": 4.0,
-#         "delay_minutes": 0.1,       # Wait 3 mins for them to clean the plate
-
-#         "inspection_count": 1,      # Final clean check
-#         "is_active_meal": True
-#     }
-# ]
 
 TOTAL_SESSION_CUPS = 6.0             # Total ideal amount of food for this session
 NUM_DISTRIBUTIONS = 5                # How many fractional portions to split the total into
 
-DELAY_PER_INTERVAL_MINUTES = 0.1     # EXACT time to wait before EACH camera check pass
+DELAY_PER_INTERVAL_MINUTES = 2.0     # EXACT time to wait before EACH camera check pass
 INSPECTION_COUNT_PER_DELAY = 2       # How many perimeter photo sweeps to execute during that wait window
 
 DOUBLE_SWEEP_TOLERANCE = 4           # Allowed difference to count as "almost the same" (e.g. 4 vs 4, or 4 vs 3)
