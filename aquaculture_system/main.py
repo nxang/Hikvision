@@ -281,7 +281,7 @@ def run_dynamic_feeding_engine(camera, relay, ai_worker, biomass_model):
         # =========================================================================
 
         # 2. READ HISTORICAL PROFILE LEDGER LOGS
-        history_multiplier = calculate_historical_adjustment(config.CSV_LOG_FILE, lookback_sessions=3)
+        history_multiplier = calculate_historical_adjustment(config.CSV_LOG_FILE, lookback_sessions=1)
         adjusted_total_cups = config.TOTAL_SESSION_CUPS * history_multiplier
         
         base_cups_per_distribution = adjusted_total_cups / config.NUM_DISTRIBUTIONS

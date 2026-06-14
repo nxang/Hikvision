@@ -33,50 +33,50 @@ def log_session_summary(log_file, total_dispensed, baseline_budget, historical_m
         
 def calculate_historical_adjustment(log_file, lookback_sessions=3):
     """
-    Reads the last N rows of the ledger.
-    Scales down for overfeed protection, or automatically increments 
-    feed volumes upward by 5% if a perfect consumption streak is detected.
+    Reads the last N valid rows of the ledger.
+    Scales down for overfeed protection, or increases feed by 5%
+    if a perfect success streak is detected.
     """
     if not os.path.isfile(log_file):
         print("📈 [History Engine] No historical ledger found yet. Using standard 1.0x baseline setpoints.")
-        return 1.0  
-        
+        return 1.0
+
     recent_statuses = []
+
     try:
-        with open(log_file, mode='r') as csv_file:
+        with open(log_file, mode='r', newline='') as csv_file:
             reader = list(csv.reader(csv_file))
-            data_rows = reader[1:]  # Omit header row
-            
-            # Extract the string completion codes from the last entries
-            for row in data_rows[-lookback_sessions:]:
-                if len(row) >= 3:
-                    recent_statuses.append(row[4])
+            data_rows = reader[1:]  # Skip header row
+
+            valid_rows = [row for row in data_rows if len(row) >= 5]
+
+            for row in valid_rows[-lookback_sessions:]:
+                recent_statuses.append(row[4].strip())
+
     except Exception as e:
         print(f"⚠️ [History Engine] File read error: {e}")
         return 1.0
 
-    # Ensure we actually have enough history to make an assessment
     if len(recent_statuses) < lookback_sessions:
+        print("⚖ [History Engine] Not enough valid historical records. Keeping feed at 100% standard baseline.")
         return 1.0
 
-    # 1. EVALUATE DOWNWARD PROTECTION FACTORS
     overfeed_incidents = sum(1 for status in recent_statuses if "ABORTED" in status)
-    
+
     if overfeed_incidents == lookback_sessions:
         print(f"📉 [History Engine] Chronic overfeed alert over last {lookback_sessions} meals! Safety throttle: reducing feed by 30%.")
         return 0.7
+
     elif overfeed_incidents >= 1:
         print("📉 [History Engine] Failsafes triggered recently. Dialing down baseline feed by 10%.")
         return 0.9
 
-    # 2. EVALUATE UPWARD GROWTH FACTORS
     perfect_streaks = sum(1 for status in recent_statuses if status == "SUCCESS_FULL_RUN")
-    
+
     if perfect_streaks == lookback_sessions:
         print(f"🚀 [History Engine] Perfect Clean-Plate Streak! Fish are growing. Up-scaling baseline feed by 5% to match biomass.")
         return 1.05
 
-    # Fallback to normal profile values
     print("⚖ [History Engine] Balanced meal data. Keeping feed values at 100% standard baseline.")
     return 1.0
 
