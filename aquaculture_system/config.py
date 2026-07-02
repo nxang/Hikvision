@@ -18,7 +18,7 @@ YOLO_CONF_THRESHOLD = 0.40  # Only count pellets if the model is > 40% confident
 # --- RADIAL SCATTER ANTI-DOUBLE COUNTING THRESHOLDS ---
 # Since pellets blast outward in all directions, if ANY single peripheral preset 
 # catches more than this limit, it means pellets are escaping the school.
-MAX_SINGLE_ZONE_LEFTOVERS = 8
+MAX_SINGLE_ZONE_LEFTOVERS = 2
 
 CLEAN_PLATE_PELLET_THRESHOLD = 2          
 
