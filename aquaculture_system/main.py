@@ -423,8 +423,9 @@ def run_dynamic_feeding_engine(camera, relay, ai_worker, biomass_model):
 
 
 if __name__ == "__main__":
+    YOLO_WEIGHTS_PATH= PROJECT_ROOT / "best.pt"
     # Deploy foundational thread infrastructure hardware workers
-    yolo_pellet_worker = AIAnalysisWorker(model_path=config.YOLO_WEIGHTS_PATH)
+    yolo_pellet_worker = AIAnalysisWorker(model_path=YOLO_WEIGHTS_PATH)
     relay_hardware_worker = ExternalRelayWorker(config.RELAY_API_URL)
     camera_system = HikvisionCamera(config.CAMERA_IP, config.CAMERA_USER, config.CAMERA_PASS)
 

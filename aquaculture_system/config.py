@@ -12,7 +12,6 @@ RELAY_API_URL = "http://100.80.73.62:1880/api/do1"
 SECONDS_PER_CUP = 11.0
 
 # --- AI Machine Learning Settings ---
-YOLO_WEIGHTS_PATH = os.path.join("best.pt")
 YOLO_CONF_THRESHOLD = 0.40  # Only count pellets if the model is > 40% confident
 # --- RADIAL SCATTER ANTI-DOUBLE COUNTING THRESHOLDS ---
 # Since pellets blast outward in all directions, if ANY single peripheral preset 
