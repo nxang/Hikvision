@@ -13,6 +13,10 @@ from hardware.camera import HikvisionCamera
 from hardware.relay import ExternalRelayWorker
 from ai.detector import AIAnalysisWorker
 from utils.logger import ThreadSafeTeeLogger, log_session_summary, calculate_historical_adjustment
+from pathlib import Path
+
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+
 
 def convert_pixels_to_cm(pixel_points, homography_matrix):
     """Transforms tracking pixel coordinates into physical pond floor centimeter values."""
@@ -426,7 +430,7 @@ if __name__ == "__main__":
 
     # Initialize the Biomass Instance Segmentation Model ONCE right at boot runtime 
     # to eliminate inference execution lag spikes during session startup routines
-    BIOMASS_MODEL_PATH = "fish.pt"
+    BIOMASS_MODEL_PATH = PROJECT_ROOT / "fish.pt"
     print(f"🧬 [Main Init] Compiling Instance Segmentation Network Layer from: {BIOMASS_MODEL_PATH}")
     yolo_biomass_model = YOLO(BIOMASS_MODEL_PATH)
 
