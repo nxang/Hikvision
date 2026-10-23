@@ -4,6 +4,7 @@ import math
 import os
 import time
 from dataclasses import dataclass
+from typing import Optional
 
 import config
 from biomass import run_biomass_preflight_analysis
@@ -20,7 +21,7 @@ class AppetiteAssessment:
 
     next_cups: float
     consecutive_failures: int
-    abort_status: str | None = None
+    abort_status: Optional[str] = None
 
 
 def validate_feeding_config():
