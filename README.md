@@ -19,9 +19,9 @@ commands; it still captures images and moves the camera during a session.
 Schedule times use the computer's local clock. Data paths resolve relative to
 the project root, regardless of the launch directory.
 
-Camera credentials come from `HIKVISION_CAMERA_USER` and
-`HIKVISION_CAMERA_PASSWORD`; no password is stored in source. The camera password
-is required even in dry-run mode because that mode still uses the camera.
+Camera credentials can be overridden with `HIKVISION_CAMERA_USER` and
+`HIKVISION_CAMERA_PASSWORD`. Prefer those environment variables for credentials.
+The camera needs credentials even in dry-run mode because it still accesses hardware.
 Certificate verification is enabled. For a camera using a private CA or a
 self-signed certificate, set `HIKVISION_CAMERA_CA_BUNDLE` to an absolute PEM bundle
 path containing the trusted certificate. The certificate must match the host/IP
@@ -77,3 +77,25 @@ cap bounds requested portions and is not a feed-mass measurement.
 Tests mock camera, inference, and relay operations. They cover scan failures,
 capture ordering, relay faults and interruption, delivery accounting, budget
 limits, and both appetite paths that previously bypassed the overfeeding check.
+
+## Code organization
+
+- `aquaculture_system/main.py`: model loading, worker startup/shutdown, and schedule polling.
+- `aquaculture_system/feeding.py`: session orchestration, prechecks, appetite decisions, and budget enforcement.
+- `aquaculture_system/biomass.py`: fish geometry, size estimation, annotations, and biomass summaries.
+- `aquaculture_system/config.py`: settings grouped by hardware, feeding policy, calibration, and storage.
+- `aquaculture_system/hardware/`: camera capture and feeder relay workers.
+- `aquaculture_system/ai/detector.py`: pellet detection and annotated images.
+- `aquaculture_system/utils/logger.py`: feeding history, CSV summaries, and console capture.
+- `tests/`: mocked hardware regression tests and application lifecycle checks.
+
+To format the code consistently:
+
+```powershell
+.\.venv\Scripts\python.exe -m pip install -r requirements-dev.txt
+.\.venv\Scripts\python.exe -m black aquaculture_system tests
+```
+
+Runtime dependencies remain in `aquaculture_system/requirements.txt`; the formatter
+is an optional development dependency. Reserved settings in `config.py` are kept
+for compatibility and are explicitly marked as unused.

@@ -1,0 +1,2 @@
+# Optional development tools; runtime dependencies are in aquaculture_system/requirements.txt.
+black==26.10.1
