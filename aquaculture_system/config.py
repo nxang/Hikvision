@@ -68,7 +68,7 @@ JUVENILE_A_COEFF  = 0.020
 GROWOUT_A_COEFF  = 0.0198
 
 # --- Feeding Schedule Times ---
-FEED_TIMES = ["09:00", "12:00","14:30","18:00"]  # 24-hour format times to trigger feeding sessions
+FEED_TIMES = ["09:00", "12:00","15:00","18:00"]  # 24-hour format times to trigger feeding sessions
 
 TOTAL_SESSION_CUPS = 6.0             # Total ideal amount of food for this session
 # Keep historical adaptation within an explicit operator-controlled range.
