@@ -31,15 +31,16 @@ VELOCITY_STAGNATION_THRESHOLD = 0.5  # Below this rate, fish have lost interest
 APPETITE_BOOST_MULTIPLIER = 1.20          # Increase next drop by 20% if eating fast
 APPETITE_REDUCTION_MULTIPLIER = 0.70      # Decrease next drop by 30% if pellets linger
 
+BIOMASS_PRESET = 2
 # --- PTZ Presets Layout ---
 FEEDER_STATION_PRESET = 4
 
 # Pre-Check scans everything including the feeder zone to guarantee absolute cleanliness
-PRECHECK_PRESETS = [4,5, 6, 7, 8, 9, 10, 11, 12]
+PRECHECK_PRESETS = [4, 5, 6, 7, 8, 9, 10, 11, 12,13]
 # PRECHECK_PRESETS = [4]
 
 # Active Meal checks EXCLUDE Preset 9 to completely avoid surface foam/splashing noise
-ACTIVE_MEAL_PRESETS = [4,5, 6, 7, 8, 10, 11, 12]
+ACTIVE_MEAL_PRESETS = [4,5, 6, 7, 8, 10, 11, 12,13]
 # ACTIVE_MEAL_PRESETS = [5]
 
 # --- Storage Settings ---
@@ -54,11 +55,9 @@ BIOMASS_MATRIX_PATH  = "pond_preset2_homography.npy"
 LENGTH_CORRECTION_FACTOR  = 0.625
 JUVENILE_A_COEFF  = 0.020
 GROWOUT_A_COEFF  = 0.0198
-BIOMASS_PRESET = 2
 
 # --- Feeding Schedule Times ---
 FEED_TIMES = ["09:00", "12:00","15:00","18:00"]  # 24-hour format times to trigger feeding sessions
-
 
 TOTAL_SESSION_CUPS = 6.0             # Total ideal amount of food for this session
 NUM_DISTRIBUTIONS = 5                # How many fractional portions to split the total into
