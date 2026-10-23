@@ -1,23 +1,21 @@
-# hardware/camera.py
 import os
 import queue
 import threading
+from concurrent.futures import Future
 import requests
-import urllib3
 from requests.auth import HTTPDigestAuth
+import config
 
-urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 class HikvisionCamera:
-    """Manages hardware capture pipelines and relays completed frames to the AI thread."""
+    """Every capture reports success or failure explicitly."""
     def __init__(self, ip, user, password):
-        self.ip = ip
-        self.user = user
-        self.password = password
+        if not password:
+            raise ValueError("Set HIKVISION_CAMERA_PASSWORD before starting the camera")
         self.auth = HTTPDigestAuth(user, password)
-        self.base_url = f"https://{ip}/ISAPI"
-        self.headers = {"X-Requested-With": "XMLHttpRequest"}
-        
+        self.verify = config.CAMERA_TLS_VERIFY
+        self.base_url = f'https://{ip}/ISAPI'
+        self.headers = {'X-Requested-With': 'XMLHttpRequest'}
         self.capture_queue = queue.Queue()
         self.capture_thread = None
         self.is_running = False
@@ -30,41 +28,42 @@ class HikvisionCamera:
     def stop_capture_thread(self):
         self.is_running = False
         if self.capture_thread:
-            self.capture_thread.join(timeout=1.0)
+            self.capture_thread.join(timeout=12)
 
-    def queue_snapshot_job(self, folder, prefix, custom_timestamp):
-        self.capture_queue.put({
-            "folder": folder,
-            "prefix": prefix,
-            "timestamp": custom_timestamp
-        })
+    def queue_snapshot_job(self, folder, prefix, custom_timestamp, analyze=True):
+        future = Future()
+        if not self.is_running:
+            future.set_exception(RuntimeError('Camera worker is not running'))
+            return future
+        self.capture_queue.put((folder, prefix, custom_timestamp, analyze, future))
+        return future
 
     def _capture_worker_loop(self, ai_worker):
-        while self.is_running:
+        while self.is_running or not self.capture_queue.empty():
             try:
-                job = self.capture_queue.get(timeout=0.5)
+                folder, prefix, timestamp, analyze, future = self.capture_queue.get(timeout=0.5)
             except queue.Empty:
                 continue
-
-            pic_url = f"{self.base_url}/Streaming/channels/101/picture"
-            filename = os.path.join(job["folder"], f"{job['prefix']}_{job['timestamp']}_LEFTOVER.jpg")
-            
             try:
-                r = requests.get(pic_url, auth=self.auth, verify=False, timeout=10)
-                if r.status_code == 200:
-                    with open(filename, 'wb') as f:
-                        f.write(r.content)
-                    ai_worker.queue_analysis_job(raw_image_path=filename, output_folder=job["folder"], zone_prefix=job["prefix"])
-                else:
-                    print(f"    ❌ [Capture Thread] Snapshot Error: {r.status_code}")
-            except requests.RequestException:
-                print("    ❌ [Capture Thread] Camera network timeout")
-            
-            self.capture_queue.task_done()
+                if not self.is_running:
+                    raise RuntimeError('Camera worker stopped')
+                response = requests.get(f'{self.base_url}/Streaming/channels/101/picture', auth=self.auth, verify=self.verify, timeout=10)
+                response.raise_for_status()
+                filename = os.path.join(folder, f'{prefix}_{timestamp}_LEFTOVER.jpg')
+                os.makedirs(folder, exist_ok=True)
+                with open(filename, 'wb') as image_file:
+                    image_file.write(response.content)
+                analysis = ai_worker.queue_analysis_job(filename, folder, prefix) if analyze else None
+                future.set_result((filename, analysis))
+            except Exception as exc:
+                future.set_exception(exc)
+            finally:
+                self.capture_queue.task_done()
 
     def go_to_preset(self, preset_id):
-        url = f"{self.base_url}/PTZCtrl/channels/1/presets/{preset_id}/goto"
         try:
-            return requests.put(url, auth=self.auth, headers=self.headers, verify=False, timeout=5).status_code == 200
+            response = requests.put(f'{self.base_url}/PTZCtrl/channels/1/presets/{preset_id}/goto', auth=self.auth, headers=self.headers, verify=self.verify, timeout=5)
+            response.raise_for_status()
+            return True
         except requests.RequestException:
             return False

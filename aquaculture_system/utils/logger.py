@@ -4,6 +4,7 @@ import csv
 import sys
 import threading
 import time
+import math
 
 def log_session_summary(log_file, total_dispensed, baseline_budget, historical_mult, final_status):
     """Writes rich session outcomes to a CSV audit spreadsheet."""
@@ -31,12 +32,25 @@ def log_session_summary(log_file, total_dispensed, baseline_budget, historical_m
         print(f"❌ Failed to write to CSV log: {e}")
         
         
-def calculate_historical_adjustment(log_file, standard_baseline, lookback_sessions=3):
+def calculate_historical_adjustment(log_file, standard_baseline, lookback_sessions=3,
+                                  min_budget=0.0, max_budget=None):
     """
     Reads the last N valid rows of the ledger.
     Uses the previous adjusted budget as the new base, so increases compound:
     4.00 -> 4.20 -> 4.41 -> 4.63
     """
+    if not math.isfinite(standard_baseline) or standard_baseline <= 0:
+        raise ValueError("Baseline must be finite and positive")
+    if not isinstance(lookback_sessions, int) or lookback_sessions <= 0:
+        raise ValueError("Lookback must be a positive integer")
+    if max_budget is None:
+        max_budget = standard_baseline
+    if (not math.isfinite(min_budget) or not math.isfinite(max_budget)
+            or not 0 <= min_budget <= standard_baseline <= max_budget):
+        raise ValueError("Invalid session budget limits")
+    def bounded_multiplier(budget):
+        return min(max_budget, max(min_budget, budget)) / standard_baseline
+
     if not os.path.isfile(log_file):
         print("📈 [History Engine] No historical ledger found yet. Using standard 1.0x baseline setpoints.")
         return 1.0
@@ -56,12 +70,15 @@ def calculate_historical_adjustment(log_file, standard_baseline, lookback_sessio
             previous_budget = float(valid_rows[-1][1])
         except ValueError:
             previous_budget = standard_baseline
+        if not math.isfinite(previous_budget) or previous_budget < 0:
+            previous_budget = standard_baseline
 
-        if len(valid_rows) < lookback_sessions:
-            print("⚖ [History Engine] Not enough valid historical records. Keeping previous budget.")
-            return previous_budget / standard_baseline
-
-        recent_rows = valid_rows[-lookback_sessions:]
+        previous_budget = bounded_multiplier(previous_budget) * standard_baseline
+        # Only completed appetite observations count toward the lookback window.
+        # Errors and skipped sessions cannot mask actual overfeeding incidents.
+        observations = [row for row in valid_rows if (
+            row[4].strip() == "SUCCESS_FULL_RUN" or row[4].strip().startswith("ABORTED_"))]
+        recent_rows = observations[-lookback_sessions:]
         recent_statuses = [row[4].strip() for row in recent_rows]
 
     except Exception as e:
@@ -83,12 +100,12 @@ def calculate_historical_adjustment(log_file, standard_baseline, lookback_sessio
 
         if perfect_streaks == lookback_sessions:
             next_budget = previous_budget * 1.05
-            print(f"🚀 [History Engine] Clean streak detected. Increasing previous budget to {next_budget:.2f} cups.")
+            print(f"🚀 [History Engine] Clean streak budget after limits: {bounded_multiplier(next_budget) * standard_baseline:.2f} cups.")
         else:
             next_budget = previous_budget
             print(f"⚖ [History Engine] Balanced meal data. Keeping previous budget at {next_budget:.2f} cups.")
 
-    return next_budget / standard_baseline
+    return bounded_multiplier(next_budget)
 
 class ThreadSafeTeeLogger:
     """
@@ -103,13 +120,15 @@ class ThreadSafeTeeLogger:
     def write(self, message):
         with self.lock:
             self.terminal.write(message)
-            self.log_file.write(message)
-            self.log_file.flush()  # Force write immediate telemetry to disk
+            if not self.log_file.closed:
+                self.log_file.write(message)
+                self.log_file.flush()
 
     def flush(self):
         with self.lock:
             self.terminal.flush()
-            self.log_file.flush()
+            if not self.log_file.closed:
+                self.log_file.flush()
 
     def close(self):
         with self.lock:

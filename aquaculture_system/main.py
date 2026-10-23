@@ -1,9 +1,9 @@
 # main.py
 import os
 import time
-import threading
 import sys  # Intercepts standard stdout print streams for daily log tracking files
 import csv  # Appends biomass population profiles to a continuous growth spreadsheet
+import math
 import cv2
 import numpy as np
 from ultralytics import YOLO
@@ -57,7 +57,8 @@ def run_biomass_preflight_analysis(camera, biomass_model, target_folder):
     """
     print("\n📏 [Biomass Core] Initializing stock preflight cohort assessment...")
     matrix_path = getattr(config, 'BIOMASS_MATRIX_PATH', "pond_preset2_homography.npy")
-    biomass_csv = getattr(config, 'BIOMASS_CSV_LOG_FILE', "biomass_growth_ledger.csv")
+    biomass_csv = (config.DRY_RUN_BIOMASS_CSV_LOG_FILE if config.DRY_RUN
+                   else config.BIOMASS_CSV_LOG_FILE)
     biomass_preset = getattr(config, 'BIOMASS_PRESET', 2)
     
     if not os.path.exists(matrix_path):
@@ -69,21 +70,21 @@ def run_biomass_preflight_analysis(camera, biomass_model, target_folder):
     
     # 1. PTZ MECHANIZATION TRANSIT TO SECTOR 2
     print(f"🔄 [Biomass Core] Re-aligning camera array optic zoom to Sector Preset {biomass_preset}...")
-    camera.go_to_preset(biomass_preset)
+    if not camera.go_to_preset(biomass_preset):
+        raise RuntimeError("Biomass camera preset movement failed")
     time.sleep(4.0)  # Mechanical stabilization wait padding
 
     # 2. TRIGGER ASYNCHRONOUS HANDSHAKE CAPTURE
     snap_time = f"{time.strftime('%Y%m%d_%H%M%S')}_BIOMASS_PRECHECK"
-    camera.queue_snapshot_job(folder=target_folder, prefix="Zone_Preset_2", custom_timestamp=snap_time)
-    camera.capture_queue.join()  # Wait for file download array to complete disk write bounds
-
-    # Reconstruct filesystem image path
-    captured_img_path = os.path.join(target_folder, f"Zone_Preset_2_{snap_time}_LEFTOVER.jpg")
+    captured_img_path, _ = camera.queue_snapshot_job(
+        folder=target_folder, prefix=f"Zone_Preset_{biomass_preset}",
+        custom_timestamp=snap_time, analyze=False
+    ).result(timeout=config.CAPTURE_TIMEOUT_SECONDS)
     raw_frame = cv2.imread(captured_img_path)
     
     if raw_frame is None:
         print(f"❌ [Biomass Core] System read fault on newly created frame block: {captured_img_path}")
-        return
+        raise RuntimeError("Biomass capture is not a valid image")
 
     # 3. RUN DEEP LEARNING MODEL PREDICTION
     print("[INFO] Processing instance segmentation layers over raw water boundary...")
@@ -231,40 +232,76 @@ def run_biomass_preflight_analysis(camera, biomass_model, target_folder):
 def dispense_feed(camera, relay, feeder_preset, cups, ai_worker=None, target_folder=None, current_distribution=0):
     """Aligns camera to feeder point, discharges portion payload, and saves verification capture."""
     print(f"🔄 [Feeder Align] Target Preset {feeder_preset}...")
-    camera.go_to_preset(feeder_preset)
+    if not camera.go_to_preset(feeder_preset):
+        raise RuntimeError("Feeder camera preset movement failed")
     time.sleep(4.0)  
     
-    feeder_done = threading.Event()
-    relay.trigger_feeding(num_cups=cups, callback_event=feeder_done)
-    feeder_done.wait()  
+    timeout = cups * config.SECONDS_PER_CUP + 5 * (config.RELAY_OFF_RETRIES + 1) + 5
+    delivered = relay.trigger_feeding(num_cups=cups).result(timeout=timeout)
+    return delivered
 
-    if ai_worker and target_folder:
-        print(f"📸 [Feeder Shield] Portion drop complete. Capturing drop verification photo...")
-        verify_timestamp = f"{time.strftime('%Y%m%d_%H%M%S')}_PORTION_{current_distribution}_POST_DROP"
-        camera.queue_snapshot_job(folder=target_folder, prefix=f"Feeder_Zone_Preset_{feeder_preset}", custom_timestamp=verify_timestamp)
-        camera.capture_queue.join()  
+
+def capture_pellet_count(camera, target_folder, prefix, timestamp):
+    _, analysis = camera.queue_snapshot_job(
+        folder=target_folder, prefix=prefix, custom_timestamp=timestamp
+    ).result(timeout=config.CAPTURE_TIMEOUT_SECONDS)
+    return analysis.result(timeout=config.ANALYSIS_TIMEOUT_SECONDS)
+
+
+def validate_feeding_config():
+    for name in ("TOTAL_SESSION_CUPS", "SECONDS_PER_CUP", "CAPTURE_TIMEOUT_SECONDS",
+                 "ANALYSIS_TIMEOUT_SECONDS"):
+        value = getattr(config, name)
+        if not math.isfinite(value) or value <= 0:
+            raise ValueError(f"{name} must be finite and positive")
+    for name in ("NUM_DISTRIBUTIONS", "INSPECTION_COUNT_PER_DELAY", "RELAY_OFF_RETRIES"):
+        value = getattr(config, name)
+        if not isinstance(value, int) or isinstance(value, bool) or value <= 0:
+            raise ValueError(f"{name} must be a positive integer")
+    if (not math.isfinite(config.MIN_SESSION_CUPS)
+            or not math.isfinite(config.MAX_SESSION_CUPS)
+            or not 0 <= config.MIN_SESSION_CUPS <= config.TOTAL_SESSION_CUPS <= config.MAX_SESSION_CUPS):
+        raise ValueError("Session limits must contain TOTAL_SESSION_CUPS and be finite")
+    if not config.PRECHECK_PRESETS or not config.ACTIVE_MEAL_PRESETS:
+        raise ValueError("Inspection preset lists must not be empty")
 
 
 def scan_and_evaluate_perimeter(camera, ai_worker, patrol_presets, target_folder, step_label):
     """Executes a perimeter dragnet pass and extracts the peak single-zone density count."""
-    ai_worker.reset_cycle_counter()
+    if not patrol_presets:
+        raise ValueError("Inspection must include at least one preset")
+    counts = []
     cycle_timestamp = f"{time.strftime('%Y%m%d_%H%M%S')}_{step_label}"
 
     print(f"🔎 [Scanning Matrix: {step_label}] Panning targets: {patrol_presets}")
     for preset_id in patrol_presets:
         prefix_string = f"Zone_Preset_{preset_id}"
-        if camera.go_to_preset(preset_id):
-            time.sleep(4.0)  
-            camera.queue_snapshot_job(folder=target_folder, prefix=prefix_string, custom_timestamp=cycle_timestamp)
-            
-    camera.capture_queue.join()
-    ai_worker.queue.join()
-    return ai_worker.cycle_max_zone_leftovers
+        if not camera.go_to_preset(preset_id):
+            raise RuntimeError(f"Camera could not move to preset {preset_id}")
+        time.sleep(4.0)
+        # Finish the image download before allowing the camera to move again.
+        counts.append(capture_pellet_count(camera, target_folder, prefix_string, cycle_timestamp))
+    return max(counts)
+
+
+def verify_final_consumption(camera, ai_worker, target_folder):
+    """A completed dispense is successful only after a delayed clean inspection."""
+    for check in range(1, config.INSPECTION_COUNT_PER_DELAY + 1):
+        time.sleep(config.DELAY_PER_INTERVAL_MINUTES * 60)
+        leftovers = scan_and_evaluate_perimeter(
+            camera, ai_worker, config.ACTIVE_MEAL_PRESETS, target_folder,
+            f"FINAL_CONSUMPTION_{check}")
+        if leftovers <= config.MAX_SINGLE_ZONE_LEFTOVERS:
+            return True
+    return False
 
 
 def run_dynamic_feeding_engine(camera, relay, ai_worker, biomass_model):
     """Executes top-down matrix splitting utilizing real-time consumption velocity optimization parameters."""
-    target_folder = os.path.join(config.MEDIA_OUTPUT_DIR, f"Leftover_Inspection_{time.strftime('%Y-%m-%d')}")
+    validate_feeding_config()
+    ledger_file = config.DRY_RUN_CSV_LOG_FILE if config.DRY_RUN else config.CSV_LOG_FILE
+    media_root = os.path.join(config.MEDIA_OUTPUT_DIR, "dry_run") if config.DRY_RUN else config.MEDIA_OUTPUT_DIR
+    target_folder = os.path.join(media_root, f"Leftover_Inspection_{time.strftime('%Y-%m-%d')}")
     os.makedirs(target_folder, exist_ok=True)
 
     # Initialize dynamic Tee logger loop handles
@@ -273,6 +310,9 @@ def run_dynamic_feeding_engine(camera, relay, ai_worker, biomass_model):
     original_stdout = sys.stdout
     sys.stdout = tee_logger
 
+    total_cups_fed_session = 0.0
+    adjusted_total_cups = config.TOTAL_SESSION_CUPS
+    history_multiplier = 1.0
     try:
         print(f"\n🔔 [Automation Core] Session initialized at {time.strftime('%H:%M:%S')}")
         total_cups_fed_session = 0.0
@@ -285,8 +325,13 @@ def run_dynamic_feeding_engine(camera, relay, ai_worker, biomass_model):
         # =========================================================================
 
         # 2. READ HISTORICAL PROFILE LEDGER LOGS
-        history_multiplier = calculate_historical_adjustment(config.CSV_LOG_FILE, standard_baseline=config.TOTAL_SESSION_CUPS,lookback_sessions=3)
-        adjusted_total_cups = config.TOTAL_SESSION_CUPS * history_multiplier
+        history_multiplier = calculate_historical_adjustment(
+            ledger_file, standard_baseline=config.TOTAL_SESSION_CUPS,
+            lookback_sessions=3, min_budget=config.MIN_SESSION_CUPS,
+            max_budget=config.MAX_SESSION_CUPS)
+        adjusted_total_cups = min(config.MAX_SESSION_CUPS, max(
+            config.MIN_SESSION_CUPS, config.TOTAL_SESSION_CUPS * history_multiplier))
+        history_multiplier = adjusted_total_cups / config.TOTAL_SESSION_CUPS
         
         base_cups_per_distribution = adjusted_total_cups / config.NUM_DISTRIBUTIONS
         next_drop_cups = base_cups_per_distribution  
@@ -301,7 +346,7 @@ def run_dynamic_feeding_engine(camera, relay, ai_worker, biomass_model):
             peak_precheck = scan_and_evaluate_perimeter(camera, ai_worker, config.PRECHECK_PRESETS, target_folder, "PRE_CHECK_EXTENDED")
             if peak_precheck > config.MAX_SINGLE_ZONE_LEFTOVERS:
                 print("🛑 Tank is dirty. Aborting entire session!")
-                log_session_summary(config.CSV_LOG_FILE, total_cups_fed_session, adjusted_total_cups, history_multiplier, "ABORTED_DIRTY_TANK_PRECHECK")
+                log_session_summary(ledger_file, total_cups_fed_session, adjusted_total_cups, history_multiplier, "ABORTED_DIRTY_TANK_PRECHECK")
                 return
 
         # 4. EXECUTE EQUAL PORTION DISTRIBUTION LOOP
@@ -314,13 +359,16 @@ def run_dynamic_feeding_engine(camera, relay, ai_worker, biomass_model):
                 next_drop_cups = remaining_session_budget
 
             if next_drop_cups <= 0:
-                print("🏁 [Ceiling Safeguard] Total session budget fully exhausted early. Closing engine loops.")
-                log_session_summary(config.CSV_LOG_FILE, total_cups_fed_session, adjusted_total_cups, history_multiplier, "SUCCESS_BUDGET_EXHAUSTED_EARLY")
-                return 
+                print("[Ceiling Safeguard] Budget exhausted. Checking final consumption.")
+                break
             
             print(f"\n🎬 [Portion {drop_num}/{config.NUM_DISTRIBUTIONS}] Discharging {next_drop_cups:.2f} cups...")
-            dispense_feed(camera, relay, config.FEEDER_STATION_PRESET, next_drop_cups, ai_worker, target_folder, drop_num)
-            total_cups_fed_session += next_drop_cups
+            delivered = dispense_feed(camera, relay, config.FEEDER_STATION_PRESET, next_drop_cups)
+            total_cups_fed_session += delivered
+            # Account for confirmed delivery before a verification capture can fail.
+            capture_pellet_count(camera, target_folder,
+                f"Feeder_Zone_Preset_{config.FEEDER_STATION_PRESET}",
+                f"{time.strftime('%Y%m%d_%H%M%S')}_PORTION_{drop_num}_POST_DROP")
             
             if drop_num == config.NUM_DISTRIBUTIONS:
                 break 
@@ -350,6 +398,7 @@ def run_dynamic_feeding_engine(camera, relay, ai_worker, biomass_model):
                     )
                     
                     if peak_peripheral <= clean_plate_thresh:
+                        consecutive_failures = 0
                         print("🚀 [Appetite: RAVENOUS SHORT-CIRCUIT] Food vanished immediately at source! Accelerating schedule timeline.")
                         boost_mult = getattr(config, 'APPETITE_BOOST_MULTIPLIER', 1.20)
                         next_drop_cups = base_cups_per_distribution * boost_mult
@@ -364,6 +413,17 @@ def run_dynamic_feeding_engine(camera, relay, ai_worker, biomass_model):
                 highest_verified_leftover = max(peak_a, peak_b)
                 current_timestamp = time.time()
                 print(f"📊 Double-Sweep Telemetry -> Perimeter Peak Leftovers: {highest_verified_leftover}")
+
+                # Safety checks must precede every appetite-based early exit.
+                if highest_verified_leftover > config.MAX_SINGLE_ZONE_LEFTOVERS:
+                    consecutive_failures += 1
+                else:
+                    consecutive_failures = 0
+                if consecutive_failures >= 2:
+                    log_session_summary(ledger_file, total_cups_fed_session,
+                        adjusted_total_cups, history_multiplier,
+                        f"ABORTED_AT_P{drop_num}_C{check_idx}")
+                    return
 
                 # --- HEURISTIC CONSUMPTION VELOCITY (Vc) MATHEMATICAL DERIVATIVE ---
                 if last_sweep_pellet_count is not None:
@@ -394,18 +454,6 @@ def run_dynamic_feeding_engine(camera, relay, ai_worker, biomass_model):
                 last_sweep_pellet_count = highest_verified_leftover
                 last_sweep_timestamp = current_timestamp
 
-                # EVALUATE SAFETY THRESHOLD GATEWAYS
-                if highest_verified_leftover > config.MAX_SINGLE_ZONE_LEFTOVERS:
-                    consecutive_failures += 1
-                    print(f"⚠️ [Shield Warning] Strike {consecutive_failures}/2! Boundary density broke safety limits.")
-                else:
-                    consecutive_failures = 0
-                
-                if consecutive_failures >= 2:
-                    print("🛑 [Overfeed Shield] Hard feeding engine lockout triggered.")
-                    log_session_summary(config.CSV_LOG_FILE, total_cups_fed_session, adjusted_total_cups, history_multiplier, f"ABORTED_AT_P{drop_num}_C{check_idx}")
-                    return
-
             # Sluggish appetite fallback fallback if the loop finishes natively without early exits
             if not appetite_mitigated_early and last_sweep_pellet_count is not None:
                 if last_sweep_pellet_count > clean_plate_thresh:
@@ -413,9 +461,21 @@ def run_dynamic_feeding_engine(camera, relay, ai_worker, biomass_model):
                     reduce_mult = getattr(config, 'APPETITE_REDUCTION_MULTIPLIER', 0.70)
                     next_drop_cups = base_cups_per_distribution * reduce_mult
 
-        print(f"\n🏁 [Automation Core] Run Successful. Disbursed: {total_cups_fed_session:.2f} cups.")
-        log_session_summary(config.CSV_LOG_FILE, total_cups_fed_session, adjusted_total_cups, history_multiplier, "SUCCESS_FULL_RUN")
+        if total_cups_fed_session == 0:
+            status = "SKIPPED_ZERO_BUDGET"
+        elif verify_final_consumption(camera, ai_worker, target_folder):
+            status = "SUCCESS_FULL_RUN"
+        else:
+            status = "ABORTED_FINAL_LEFTOVERS"
+        print(f"[Session outcome] {status}; confirmed portions: {total_cups_fed_session:.2f} cups")
+        log_session_summary(ledger_file, total_cups_fed_session, adjusted_total_cups, history_multiplier, status)
 
+    except BaseException as exc:
+        print(f"[Session aborted] {type(exc).__name__}: {exc}")
+        log_session_summary(ledger_file, total_cups_fed_session,
+            adjusted_total_cups, history_multiplier,
+            f"ERROR_{type(exc).__name__}_DELIVERY_MAY_BE_UNKNOWN")
+        raise
     finally:
         print(f"🔒 [Automation Core] Session closed at {time.strftime('%H:%M:%S')}\n")
         sys.stdout = original_stdout
@@ -423,6 +483,7 @@ def run_dynamic_feeding_engine(camera, relay, ai_worker, biomass_model):
 
 
 if __name__ == "__main__":
+    validate_feeding_config()
     YOLO_WEIGHTS_PATH= PROJECT_ROOT / "best.pt"
     # Deploy foundational thread infrastructure hardware workers
     yolo_pellet_worker = AIAnalysisWorker(model_path=YOLO_WEIGHTS_PATH)
@@ -435,14 +496,16 @@ if __name__ == "__main__":
     print(f"🧬 [Main Init] Compiling Instance Segmentation Network Layer from: {BIOMASS_MODEL_PATH}")
     yolo_biomass_model = YOLO(BIOMASS_MODEL_PATH)
 
-    relay_hardware_worker.start()
-    yolo_pellet_worker.start()
-    camera_system.start_capture_thread(ai_worker=yolo_pellet_worker)
-    
-    print(f"🔒 Master Loop Initialized. Listening for trigger schedule matching times: {config.FEED_TIMES}")
     try:
+        yolo_pellet_worker.start()
+        relay_hardware_worker.start()
+        camera_system.start_capture_thread(ai_worker=yolo_pellet_worker)
+        print(f"🔒 Master Loop Initialized. Listening for trigger schedule matching times: {config.FEED_TIMES}")
+        last_trigger = None
         while True:
-            if time.strftime("%H:%M") in config.FEED_TIMES:
+            trigger = time.strftime("%Y-%m-%d %H:%M")
+            if time.strftime("%H:%M") in config.FEED_TIMES and trigger != last_trigger:
+                last_trigger = trigger
                 run_dynamic_feeding_engine(
                     camera=camera_system, 
                     relay=relay_hardware_worker, 
@@ -454,6 +517,11 @@ if __name__ == "__main__":
     except KeyboardInterrupt:
         print("\nShutting down execution routines...")
     finally:
-        camera_system.stop_capture_thread()
-        yolo_pellet_worker.stop()
-        relay_hardware_worker.stop()
+        # Stop dispensing before waiting for camera downloads or inference.
+        try:
+            relay_hardware_worker.stop()
+        finally:
+            try:
+                camera_system.stop_capture_thread()
+            finally:
+                yolo_pellet_worker.stop()

@@ -1,9 +1,14 @@
 media
+.venv/
+__pycache__/
+*.py[cod]
+Ultralytics/
 model
 runs
 fish_pellet_3.v3i.yolo26
 Code
 aquaculture_feeding_ledger.csv
+aquaculture_feeding_ledger_dry_run.csv
 yolo26n.pt 
 yolo26s.pt
 new_calibrated_birds_eye.jpg
@@ -17,6 +22,7 @@ photo_2026-06-11_16-11-59.jpg
 YOLO_Patrol_2026-06-10/Zone_Preset_2_20260610_172202_RAW.jpg
 YOLO_Patrol_2026-06-10/Annotated/Zone_Preset_2_20260610_172202_YOLO.jpg
 biomass_growth_ledger.csv
+biomass_growth_ledger_dry_run.csv
 segmented_output.jpg
 photo_2026-06-11_16-13-06.jpg
 red_extracted.png
