@@ -9,7 +9,7 @@ DRY_RUN = True
 # --- Hardware Endpoints & Specs ---
 CAMERA_IP = os.environ.get("HIKVISION_CAMERA_IP", "192.168.1.64")
 CAMERA_USER = os.environ.get("HIKVISION_CAMERA_USER", "admin")
-CAMERA_PASS = os.environ.get("HIKVISION_CAMERA_PASSWORD", "")
+CAMERA_PASS = os.environ.get("HIKVISION_CAMERA_PASSWORD", "Hikvision")
 # For self-signed cameras, supply a trusted CA/certificate bundle path.
 CAMERA_TLS_VERIFY = os.environ.get("HIKVISION_CAMERA_CA_BUNDLE") or True
 
