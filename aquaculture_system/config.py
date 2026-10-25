@@ -5,7 +5,7 @@ from pathlib import Path
 
 # Paths and operating mode
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
-DRY_RUN = True
+DRY_RUN = False
 
 # Camera connection and TLS
 CAMERA_IP = os.environ.get("HIKVISION_CAMERA_IP", "192.168.1.64")
@@ -32,7 +32,7 @@ CAPTURE_TIMEOUT_SECONDS = (
 ANALYSIS_TIMEOUT_SECONDS = 60
 
 # Feeding schedule and session budget
-FEED_TIMES = ["09:00", "12:00", "15:00", "20:20"]
+FEED_TIMES = ["09:00", "12:00", "15:00", "18:00"]
 TOTAL_SESSION_CUPS = 6.0
 MIN_SESSION_CUPS = 0.0
 MAX_SESSION_CUPS = 6.0
