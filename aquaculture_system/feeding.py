@@ -8,6 +8,7 @@ from typing import Optional
 
 import config
 from biomass import run_biomass_preflight_analysis
+from hardware.camera import CameraUnavailableError, wait_for_snapshot
 from utils.logger import (
     calculate_historical_adjustment,
     log_session_summary,
@@ -31,6 +32,8 @@ def validate_feeding_config():
         "SECONDS_PER_CUP",
         "CAPTURE_TIMEOUT_SECONDS",
         "ANALYSIS_TIMEOUT_SECONDS",
+        "CAMERA_PRESET_TIMEOUT_SECONDS",
+        "CAMERA_SNAPSHOT_TIMEOUT_SECONDS",
     ):
         value = getattr(config, name)
         if not math.isfinite(value) or value <= 0:
@@ -39,10 +42,16 @@ def validate_feeding_config():
         "NUM_DISTRIBUTIONS",
         "INSPECTION_COUNT_PER_DELAY",
         "RELAY_OFF_RETRIES",
+        "CAMERA_RETRY_ATTEMPTS",
     ):
         value = getattr(config, name)
         if not isinstance(value, int) or isinstance(value, bool) or value <= 0:
             raise ValueError(f"{name} must be a positive integer")
+    if (
+        not math.isfinite(config.CAMERA_RETRY_DELAY_SECONDS)
+        or config.CAMERA_RETRY_DELAY_SECONDS < 0
+    ):
+        raise ValueError("CAMERA_RETRY_DELAY_SECONDS must be finite and nonnegative")
     if (
         not math.isfinite(config.MIN_SESSION_CUPS)
         or not math.isfinite(config.MAX_SESSION_CUPS)
@@ -60,7 +69,9 @@ def dispense_feed(camera, relay, feeder_preset, cups):
     """Align the camera and return the confirmed portion size from the relay."""
     print(f"[Feeder] Moving to preset {feeder_preset}; requesting {cups:.2f} cups")
     if not camera.go_to_preset(feeder_preset):
-        raise RuntimeError("Feeder camera preset movement failed")
+        raise CameraUnavailableError(
+            "Feeder camera preset movement failed after retries"
+        )
     time.sleep(4.0)
     timeout = cups * config.SECONDS_PER_CUP + 5 * (config.RELAY_OFF_RETRIES + 1) + 5
     return relay.trigger_feeding(num_cups=cups).result(timeout=timeout)
@@ -68,9 +79,11 @@ def dispense_feed(camera, relay, feeder_preset, cups):
 
 def capture_pellet_count(camera, target_folder, prefix, timestamp):
     """Wait for a capture and its analysis; propagate either failure."""
-    _, analysis = camera.queue_snapshot_job(
-        folder=target_folder, prefix=prefix, custom_timestamp=timestamp
-    ).result(timeout=config.CAPTURE_TIMEOUT_SECONDS)
+    _, analysis = wait_for_snapshot(
+        camera.queue_snapshot_job(
+            folder=target_folder, prefix=prefix, custom_timestamp=timestamp
+        )
+    )
     return analysis.result(timeout=config.ANALYSIS_TIMEOUT_SECONDS)
 
 
@@ -85,7 +98,9 @@ def scan_and_evaluate_perimeter(
     print(f"[Inspection: {step_label}] Presets: {patrol_presets}")
     for preset_id in patrol_presets:
         if not camera.go_to_preset(preset_id):
-            raise RuntimeError(f"Camera could not move to preset {preset_id}")
+            raise CameraUnavailableError(
+                f"Camera could not move to preset {preset_id} after retries"
+            )
         time.sleep(4.0)
         # Finish the capture before allowing the camera to move again.
         counts.append(
@@ -319,6 +334,16 @@ def run_dynamic_feeding_engine(camera, relay, ai_worker, biomass_model):
                 status = "SUCCESS_FULL_RUN"
             else:
                 status = "ABORTED_FINAL_LEFTOVERS"
+            record_outcome(status)
+        except CameraUnavailableError as exc:
+            print(
+                f"[Camera] {exc}. Ending this session; waiting for the next scheduled session."
+            )
+            status = (
+                "STOPPED_CAMERA_UNAVAILABLE"
+                if total_fed
+                else "SKIPPED_CAMERA_UNAVAILABLE"
+            )
             record_outcome(status)
         except BaseException as exc:
             print(f"[Session aborted] {type(exc).__name__}: {exc}")

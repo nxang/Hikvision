@@ -13,7 +13,7 @@ sys.path.insert(0, str(ROOT / "aquaculture_system"))
 import config
 import feeding
 from ai.detector import AIAnalysisWorker
-from hardware.camera import HikvisionCamera
+from hardware.camera import CameraUnavailableError, HikvisionCamera
 from hardware.relay import ExternalRelayWorker
 from utils.logger import calculate_historical_adjustment
 
@@ -77,7 +77,7 @@ class SafetyTests(unittest.TestCase):
         with patch.object(feeding.time, "sleep"), patch.object(
             config, "CAPTURE_TIMEOUT_SECONDS", 0.01
         ):
-            with self.assertRaises(TimeoutError):
+            with self.assertRaises(CameraUnavailableError):
                 feeding.scan_and_evaluate_perimeter(
                     camera, Mock(), [4], "unused", "test"
                 )
@@ -455,7 +455,7 @@ class SafetyTests(unittest.TestCase):
             HikvisionCamera("example.invalid", "test", "")
 
     def test_camera_uses_certificate_verification(self):
-        for verification in (True, "camera-ca.pem"):
+        for verification in (False, True, "camera-ca.pem"):
             with self.subTest(verification=verification), patch.object(
                 config, "CAMERA_TLS_VERIFY", verification
             ), patch("hardware.camera.requests.put", return_value=Mock()) as put:

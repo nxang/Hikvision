@@ -22,10 +22,10 @@ the project root, regardless of the launch directory.
 Camera credentials can be overridden with `HIKVISION_CAMERA_USER` and
 `HIKVISION_CAMERA_PASSWORD`. Prefer those environment variables for credentials.
 The camera needs credentials even in dry-run mode because it still accesses hardware.
-Certificate verification is enabled. For a camera using a private CA or a
-self-signed certificate, set `HIKVISION_CAMERA_CA_BUNDLE` to an absolute PEM bundle
-path containing the trusted certificate. The certificate must match the host/IP
-configured with `HIKVISION_CAMERA_IP`.
+`CAMERA_TLS_VERIFY = False` allows this camera's self-signed certificate on both
+the laptop and Pi. Traffic still uses HTTPS, but the camera's identity is not
+verified. To restore verification, set `CAMERA_TLS_VERIFY` to `True` or an absolute
+path to a trusted PEM certificate bundle in `config.py`.
 
 Dry runs read and write `aquaculture_feeding_ledger_dry_run.csv`, use
 `biomass_growth_ledger_dry_run.csv`, and save media under `media/dry_run/`.
@@ -40,8 +40,19 @@ not currently determine feeding budgets.
 
 ## Failure behavior
 
-- Failed preset moves, captures, invalid images, inference, or annotation writes
-  abort the session. Each capture finishes before the next preset move.
+- Camera preset moves and snapshot HTTP requests make up to
+  `CAMERA_RETRY_ATTEMPTS` attempts (default 3), waiting
+  `CAMERA_RETRY_DELAY_SECONDS` between failures (default 10 seconds). The retry
+  message includes the underlying network, HTTP, or certificate error. Request
+  timeouts add to the total recovery window; capture waits include that window.
+- If the camera remains unavailable, the controller records
+  `SKIPPED_CAMERA_UNAVAILABLE` and waits for the next scheduled session. If some
+  portions were already dispensed, it records `STOPPED_CAMERA_UNAVAILABLE` with
+  the confirmed amount and does not dispense further portions. A retry repeats
+  only the failed camera operation, never a previously dispensed portion.
+  Camera skips do not change appetite history or reset a reduced budget.
+- Each capture finishes before the next preset move. Invalid images, inference,
+  disk writes, and relay failures retain their existing error handling.
 - The two-strike leftover check runs before appetite shortcuts.
 - After the last portion, the controller waits for a consumption interval and
   inspects the active meal presets. It allows the configured number of checks;
@@ -54,8 +65,8 @@ not currently determine feeding budgets.
   or an OFF command needing retries marks delivery unknown and faults the relay,
   even when a later OFF retry succeeds.
 - Shutdown interrupts active dispensing and attempts OFF before waiting for
-  camera and inference workers. Session errors terminate the process, requiring
-  operator review and restart.
+  camera and inference workers. Camera unavailability ends only the current
+  session; other session errors terminate the process for operator review.
 - The ledger counts only portions whose timed ON/OFF sequence was confirmed.
   Error rows flag that additional physical delivery may be unknown. Hardware
   errors and skipped sessions do not count as appetite observations for historical

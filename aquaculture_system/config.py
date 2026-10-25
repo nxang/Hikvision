@@ -11,18 +11,28 @@ DRY_RUN = True
 CAMERA_IP = os.environ.get("HIKVISION_CAMERA_IP", "192.168.1.64")
 CAMERA_USER = os.environ.get("HIKVISION_CAMERA_USER", "admin")
 CAMERA_PASS = os.environ.get("HIKVISION_CAMERA_PASSWORD", "Hikvision")
-# Supply a trusted PEM bundle for a private CA or self-signed camera.
-CAMERA_TLS_VERIFY = os.environ.get("HIKVISION_CAMERA_CA_BUNDLE") or True
+# Disabled for this camera's self-signed certificate. Set True or a trusted PEM
+# bundle path to restore certificate verification.
+CAMERA_TLS_VERIFY = False
+CAMERA_RETRY_ATTEMPTS = 3
+CAMERA_RETRY_DELAY_SECONDS = 10.0
+CAMERA_PRESET_TIMEOUT_SECONDS = 5
+CAMERA_SNAPSHOT_TIMEOUT_SECONDS = 10
 
 # Feeder relay and worker timeouts
 RELAY_API_URL = "http://100.80.73.62:1880/api/do1"
 SECONDS_PER_CUP = 11.0
 RELAY_OFF_RETRIES = 3
-CAPTURE_TIMEOUT_SECONDS = 15
+# Allow each request's connect/read timeouts plus the waits between retries.
+CAPTURE_TIMEOUT_SECONDS = (
+    2 * CAMERA_SNAPSHOT_TIMEOUT_SECONDS * CAMERA_RETRY_ATTEMPTS
+    + CAMERA_RETRY_DELAY_SECONDS * (CAMERA_RETRY_ATTEMPTS - 1)
+    + 5
+)
 ANALYSIS_TIMEOUT_SECONDS = 60
 
 # Feeding schedule and session budget
-FEED_TIMES = ["09:00", "12:00", "15:00", "18:00"]
+FEED_TIMES = ["09:00", "12:00", "15:00", "20:17"]
 TOTAL_SESSION_CUPS = 6.0
 MIN_SESSION_CUPS = 0.0
 MAX_SESSION_CUPS = 6.0

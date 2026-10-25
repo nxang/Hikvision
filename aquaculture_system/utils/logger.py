@@ -72,7 +72,13 @@ def calculate_historical_adjustment(
             reader = list(csv.reader(csv_file))
             data_rows = reader[1:]  # Skip header row
 
-        valid_rows = [row for row in data_rows if len(row) >= 5]
+        valid_rows = [
+            row
+            for row in data_rows
+            if len(row) >= 5
+            and row[4].strip()
+            not in {"SKIPPED_CAMERA_UNAVAILABLE", "STOPPED_CAMERA_UNAVAILABLE"}
+        ]
 
         if not valid_rows:
             return 1.0

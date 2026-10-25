@@ -8,6 +8,7 @@ import cv2
 import numpy as np
 
 import config
+from hardware.camera import CameraUnavailableError, wait_for_snapshot
 
 
 def convert_pixels_to_cm(pixel_points, homography_matrix):
@@ -141,17 +142,21 @@ def run_biomass_preflight_analysis(camera, biomass_model, target_folder):
     # Move to the calibrated inspection preset.
     print(f"[Biomass] Moving to preset {biomass_preset}")
     if not camera.go_to_preset(biomass_preset):
-        raise RuntimeError("Biomass camera preset movement failed")
+        raise CameraUnavailableError(
+            "Biomass camera preset movement failed after retries"
+        )
     time.sleep(4.0)  # Allow the camera to settle.
 
     # Wait for the snapshot before reading it.
     snap_time = f"{time.strftime('%Y%m%d_%H%M%S')}_BIOMASS_PRECHECK"
-    captured_img_path, _ = camera.queue_snapshot_job(
-        folder=target_folder,
-        prefix=f"Zone_Preset_{biomass_preset}",
-        custom_timestamp=snap_time,
-        analyze=False,
-    ).result(timeout=config.CAPTURE_TIMEOUT_SECONDS)
+    captured_img_path, _ = wait_for_snapshot(
+        camera.queue_snapshot_job(
+            folder=target_folder,
+            prefix=f"Zone_Preset_{biomass_preset}",
+            custom_timestamp=snap_time,
+            analyze=False,
+        )
+    )
     raw_frame = cv2.imread(captured_img_path)
 
     if raw_frame is None:
